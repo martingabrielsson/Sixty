@@ -73,6 +73,17 @@ button { font: inherit; border: none; background: none; }
 .btn-primary { background: var(--color-accent); color: #fdf5f1; padding: 10px 18px; }
 .btn-primary:hover { background: var(--color-accent-600); }
 
+.lang-toggle {
+  display: flex; border: 1px solid var(--color-accent-200); border-radius: 999px;
+  overflow: hidden; flex: none;
+}
+.lang-toggle button {
+  all: unset; cursor: pointer; padding: 10px 12px; font-family: var(--font-heading);
+  font-size: 12px; color: var(--color-text); opacity: .5;
+}
+.lang-toggle button.active { background: var(--color-accent-100); opacity: 1; color: var(--color-accent-700); }
+.lang-toggle button:hover { opacity: .85; }
+
 .dx-cell { cursor: pointer; user-select: none; transition: box-shadow .13s ease, transform .13s ease; }
 .dx-cell:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .dx-press { cursor: pointer; user-select: none; }
@@ -217,7 +228,7 @@ button { font: inherit; border: none; background: none; }
 <body>
 <div id="app"></div>
 <script>
-const STR = {
+const STR_SV = {
   months: ['januari', 'februari', 'mars', 'april', 'maj', 'juni', 'juli', 'augusti', 'september', 'oktober', 'november', 'december'],
   monShort: ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
   dows: ['måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag', 'söndag'],
@@ -254,6 +265,45 @@ const STR = {
   risk: (d, a) => 'Månaden når inte målet — ' + a + ' dagar kvar och ' + d + ' behövs. Värt att flagga tidigt.',
 };
 
+const STR_EN = {
+  months: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'],
+  monShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  dows: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+  dowFull: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+  types: { office: 'Office', travel: 'Travel', home: 'Home', leave: 'Leave', sick: 'Sick/Care', holiday: 'Holiday', none: 'Not logged' },
+  badges: { travel: 'T', leave: 'L', sick: 'S', holiday: 'H' },
+  rule: 'Company policy', target: 'Office-day target', year: 'This year',
+  worktime: 'Your work time', worktimeFull: 'Full time',
+  storageWarn: "Can't save in this browser right now — your changes won't persist between visits.",
+  exportLabel: 'Export', importLabel: 'Import', clearLabel: 'Clear all',
+  importOk: 'Data imported.', importErr: 'Could not read the file.',
+  clearConfirm: 'Clear all saved data? This cannot be undone.', clearOk: 'All data cleared.',
+  today: 'Today', officeToday: 'I was in the office today', pct: '%', days: 'days',
+  hint: 'Click a day to toggle office and home · right-click for the full list',
+  shortcut: 'Right-click any day to open this list.',
+  ledger: { office: 'Office days', home: 'Home days', out: 'Excluded', need: 'Social days left with colleagues' },
+  subToday: 'Today', subPast: 'Already past — adjust after the fact', subFuture: 'Planning ahead',
+  opts: [
+    ['office', 'In the office', 'Counts towards the target'],
+    ['travel', 'Business travel', 'Counts as an office day'],
+    ['home', 'Working from home', 'Stays in the month total'],
+    ['leave', 'Annual leave', 'Excluded from the month total'],
+    ['sick', 'Sick/Care', 'Excluded from the month total'],
+    ['holiday', 'Public holiday', 'Excluded from the month total'],
+    [null, 'Not logged', 'Clear this day'],
+  ],
+  eligibleLine: (w, e, r) => w + ' working days · ' + e + ' counted · ' + r + ' office days needed',
+  required: (r, e, m) => r + ' of ' + e + ' days in ' + m,
+  worktimeNote: (pct, days, month) => pct === 100 ? 'Full time — every working day counts.' : 'At ' + pct + '% work time, ' + days + ' days in ' + month + ' count towards your target.',
+  metPast: (m, p) => m + ' finished at ' + p + '% — comfortably clear.',
+  missPast: (m, p) => m + ' came in at ' + p + '%, just under the line.',
+  met: (t) => "Nice — you're over " + t + '% for the month. Everything from here is a bonus.',
+  onTrack: (d, a) => d + (d === 1 ? ' more office day' : ' more office days') + ' to go, with ' + a + ' working ' + (a === 1 ? 'day' : 'days') + ' left. There is room.',
+  risk: (d, a) => "This month will fall short — " + a + ' days left and ' + d + ' needed. Worth flagging early.',
+};
+
+let STR = STR_SV;
+
 const STORAGE_KEY = 'sixty-tracker-state-v1';
 const EXCLUDED = ['leave', 'sick', 'holiday'];
 const WORKDAYS = [1, 2, 3, 4, 5];
@@ -280,6 +330,29 @@ const HOLIDAYS = {
   '2027-12-26': 'Annandag jul',
 };
 
+const HOLIDAY_NAMES_EN = {
+  '2026-10-31': "All Saints' Day",
+  '2026-12-25': 'Christmas Day',
+  '2026-12-26': 'Boxing Day',
+  '2027-01-01': "New Year's Day",
+  '2027-01-06': 'Epiphany',
+  '2027-03-26': 'Good Friday',
+  '2027-03-28': 'Easter Sunday',
+  '2027-03-29': 'Easter Monday',
+  '2027-05-01': 'May Day',
+  '2027-05-06': 'Ascension Day',
+  '2027-05-16': 'Whit Sunday',
+  '2027-06-06': 'National Day',
+  '2027-06-26': 'Midsummer Day',
+  '2027-11-06': "All Saints' Day",
+  '2027-12-25': 'Christmas Day',
+  '2027-12-26': 'Boxing Day',
+};
+
+function holidayName(iso_) {
+  return (state.lang === 'en' ? HOLIDAY_NAMES_EN : HOLIDAYS)[iso_];
+}
+
 function todayIso() {
   const d = new Date();
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -297,9 +370,10 @@ function loadState() {
   } catch (e) {}
   if (!s) {
     const now = new Date();
-    s = { days: {}, viewY: now.getFullYear(), viewM: now.getMonth(), worktime: 100, sheet: null };
+    s = { days: {}, viewY: now.getFullYear(), viewM: now.getMonth(), worktime: 100, lang: 'sv', sheet: null };
   }
   if (s.worktime == null) s.worktime = 100;
+  if (s.lang !== 'en' && s.lang !== 'sv') s.lang = 'sv';
   if (!s.celebratedMonths) s.celebratedMonths = [];
   if (!s.seededHolidays) s.seededHolidays = [];
   const seeded = new Set(s.seededHolidays);
@@ -323,7 +397,7 @@ function checkStorage() {
 }
 function saveState() {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ days: state.days, viewY: state.viewY, viewM: state.viewM, worktime: state.worktime, seededHolidays: state.seededHolidays, celebratedMonths: state.celebratedMonths }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ days: state.days, viewY: state.viewY, viewM: state.viewM, worktime: state.worktime, lang: state.lang, seededHolidays: state.seededHolidays, celebratedMonths: state.celebratedMonths }));
     storageOK = true;
   } catch (e) { storageOK = false; }
 }
@@ -349,7 +423,7 @@ let ioMsg = '';
 function exportData() {
   const payload = {
     days: state.days, viewY: state.viewY, viewM: state.viewM,
-    worktime: state.worktime, seededHolidays: state.seededHolidays,
+    worktime: state.worktime, lang: state.lang, seededHolidays: state.seededHolidays,
     celebratedMonths: state.celebratedMonths,
   };
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
@@ -373,6 +447,7 @@ function importData(file) {
       state.viewY = typeof data.viewY === 'number' ? data.viewY : state.viewY;
       state.viewM = typeof data.viewM === 'number' ? data.viewM : state.viewM;
       state.worktime = typeof data.worktime === 'number' ? data.worktime : 100;
+      state.lang = (data.lang === 'en' || data.lang === 'sv') ? data.lang : state.lang;
       state.seededHolidays = Array.isArray(data.seededHolidays) ? data.seededHolidays : [];
       state.celebratedMonths = Array.isArray(data.celebratedMonths) ? data.celebratedMonths : [];
       saveState();
@@ -457,6 +532,7 @@ function el(tag, attrs, children) {
 
 function render() {
   const s = state;
+  STR = s.lang === 'en' ? STR_EN : STR_SV;
   const view = stats(s.viewY, s.viewM);
   const now = new Date();
   const isCurrent = s.viewY === now.getFullYear() && s.viewM === now.getMonth();
@@ -597,6 +673,10 @@ function render() {
   toolbar.appendChild(el('div', { class: 'month-label', text: cap(STR.months[s.viewM]) + ' ' + s.viewY }));
   toolbar.appendChild(el('div', { class: 'eligible-line', text: STR.eligibleLine(view.working, view.eligible, view.required) }));
   toolbar.appendChild(el('div', { style: 'flex:1' }));
+  toolbar.appendChild(el('div', { class: 'lang-toggle' }, [
+    el('button', { class: s.lang === 'sv' ? 'active' : '', text: 'SV', onclick: () => setState({ lang: 'sv' }) }),
+    el('button', { class: s.lang === 'en' ? 'active' : '', text: 'EN', onclick: () => setState({ lang: 'en' }) }),
+  ]));
   toolbar.appendChild(el('button', { class: 'btn btn-secondary dx-press', text: STR.today, onclick: () => setState({ viewY: now.getFullYear(), viewM: now.getMonth() }) }));
   toolbar.appendChild(el('button', { class: 'btn btn-primary dx-press', text: STR.officeToday, onclick: () => setDay(TODAY, 'office') }));
   main.appendChild(toolbar);
@@ -626,7 +706,7 @@ function render() {
       const cell = el('div', {
         class: work ? 'cell dx-cell' : 'cell',
         style: 'background:' + (work ? K.bg : 'transparent') + ';color:' + (work ? K.fg : 'color-mix(in srgb, #1c1268 30%, transparent)') + ';border:' + (work ? K.border : '1px solid transparent') + ';box-shadow:' + (isToday ? '0 0 0 2.5px var(--color-accent-400)' : 'none') + ';opacity:' + (work ? '1' : '0.6') + ';cursor:' + (work ? 'pointer' : 'default'),
-        title: HOLIDAYS[iso_] || '',
+        title: holidayName(iso_) || '',
       }, [
         el('div', { class: 'cell-top' }, [
           el('span', { class: 'cell-num', text: dd }),
@@ -666,7 +746,7 @@ function render() {
     const p = sheetIso.split('-').map(Number);
     const dt = new Date(p[0], p[1] - 1, p[2]);
     const sheetTitle = STR.dowFull[dt.getDay()] + ' ' + p[2] + ' ' + STR.months[p[1] - 1];
-    const sheetSub = (HOLIDAYS[sheetIso] ? HOLIDAYS[sheetIso] + ' · ' : '') + (sheetIso === TODAY ? STR.subToday : (sheetIso < TODAY ? STR.subPast : STR.subFuture));
+    const sheetSub = (holidayName(sheetIso) ? holidayName(sheetIso) + ' · ' : '') + (sheetIso === TODAY ? STR.subToday : (sheetIso < TODAY ? STR.subPast : STR.subFuture));
     const curT = s.days[sheetIso] || null;
 
     const overlay = el('div', { class: 'sheet-overlay' });

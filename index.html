@@ -90,7 +90,7 @@ button { font: inherit; border: none; background: none; }
 .brand-mark {
   width: 36px; height: 36px; border-radius: 999px; background: var(--color-accent);
   display: flex; align-items: center; justify-content: center; color: #fdf5f1;
-  font-family: var(--font-heading); font-size: 15px;
+  font-family: var(--font-heading); font-size: 12px; flex: none;
 }
 .brand-name { font-family: var(--font-heading); font-size: 22px; letter-spacing: -.01em; }
 
@@ -120,8 +120,44 @@ button { font: inherit; border: none; background: none; }
   width: 28px; height: 28px; flex: none; border-radius: 999px; border: 1.5px solid var(--color-accent-200);
   display: flex; align-items: center; justify-content: center;
 }
-.target-val { min-width: 44px; text-align: center; font-family: var(--font-heading); font-size: 17px; }
+.target-val { min-width: 44px; text-align: center; font-family: var(--font-heading); font-size: 17px; transition: color .25s ease, text-shadow .25s ease; }
 
+@keyframes pctHitPulse {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+.pct-num.hit {
+  color: var(--color-accent) !important;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--color-accent-2) 65%, transparent);
+  animation: pctHitPulse .5s ease;
+}
+.target-val.hit {
+  color: var(--color-accent-2-700);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-accent-2) 55%, transparent);
+}
+.hit-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 999px; margin-left: 6px;
+  background: var(--color-accent-2-200); color: var(--color-accent-2-800);
+  font-size: 11px; vertical-align: middle;
+}
+
+#fireworks-canvas { position: fixed; inset: 0; z-index: 999; pointer-events: none; }
+
+.storage-warn {
+  font-size: 11.5px; line-height: 1.5; padding: 8px 10px; border-radius: 12px;
+  background: var(--color-accent-2-100); color: var(--color-accent-2-800);
+  border: 1px solid var(--color-accent-2-300);
+}
+
+.data-io { display: flex; align-items: center; gap: 10px; font-size: 11px; opacity: .4; }
+.data-io-btn {
+  all: unset; cursor: pointer; font-family: var(--font-body); font-size: 11px;
+  color: var(--color-text);
+}
+.data-io-btn:hover { opacity: .75; text-decoration: underline; }
+.data-io-msg { font-size: 10.5px; opacity: .55; }
 
 .history-row { display: flex; align-items: flex-end; gap: 7px; height: 86px; }
 .history-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
@@ -134,7 +170,7 @@ button { font: inherit; border: none; background: none; }
 .nav-btn { width: 32px; height: 32px; border-radius: 999px; display: flex; align-items: center; justify-content: center; opacity: .6; }
 .nav-btn:hover { background: color-mix(in srgb, var(--color-text) 6%, transparent); }
 .month-label { font-family: var(--font-heading); font-size: 28px; letter-spacing: -.01em; white-space: nowrap; }
-.eligible-line { font-size: 13px; opacity: .55; }
+.eligible-line { font-size: 15px; font-weight: 700; opacity: .55; }
 
 .dow-heads { padding: 0 32px 10px; display: grid; grid-template-columns: repeat(7,1fr); gap: 8px; }
 .dow-head { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; opacity: .45; padding-left: 4px; }
@@ -150,10 +186,10 @@ button { font: inherit; border: none; background: none; }
 .cell-today { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; opacity: .75; }
 .cell-type { font-size: 12px; line-height: 1.25; opacity: .9; }
 
-.legend { padding: 0 32px 20px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.legend { padding: 0 32px 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
 .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; opacity: .72; }
 .legend-dot { width: 13px; height: 13px; flex: none; border-radius: 999px; }
-.hint { font-size: 12px; opacity: .5; }
+.hint { font-size: 13.8px; font-weight: 700; opacity: .5; }
 
 .sheet-overlay { position: absolute; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; }
 .sheet-backdrop { position: absolute; inset: 0; background: rgba(28,18,104,.32); animation: sxFade .16s ease both; }
@@ -186,21 +222,25 @@ const STR = {
   monShort: ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
   dows: ['måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag', 'söndag'],
   dowFull: ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'],
-  types: { office: 'Kontor', travel: 'Resa', home: 'Hemma', leave: 'Semester', sick: 'Sjuk', holiday: 'Helgdag', none: 'Inte loggad' },
+  types: { office: 'Kontor', travel: 'Resa', home: 'Hemma', leave: 'Semester', sick: 'Sjuk/VAB', holiday: 'Helgdag', none: 'Inte loggad' },
   badges: { travel: 'R', leave: 'S', sick: 'X', holiday: 'H' },
-  rule: 'Din regel', target: 'Mål för kontorsdagar', year: 'I år',
+  rule: 'Företags policy', target: 'Mål för kontorsdagar', year: 'I år',
   worktime: 'Din arbetstid', worktimeFull: 'Heltid',
-  today: 'Idag', officeToday: 'Jag var på kontoret idag', pct: ' %',
+  storageWarn: 'Kan inte spara i den här webbläsaren just nu — dina ändringar sparas inte mellan besök.',
+  exportLabel: 'Exportera', importLabel: 'Importera', clearLabel: 'Rensa allt',
+  importOk: 'Data importerad.', importErr: 'Kunde inte läsa filen.',
+  clearConfirm: 'Rensa all sparad data? Det går inte att ångra.', clearOk: 'All data rensad.',
+  today: 'Idag', officeToday: 'Jag var på kontoret idag', pct: ' %', days: 'dagar',
   hint: 'Klicka på en dag för att växla kontor och hemma · högerklicka för hela listan',
   shortcut: 'Högerklicka på vilken dag som helst för att öppna listan.',
-  ledger: { office: 'Kontorsdagar', home: 'Hemmadagar', out: 'Räknas bort', need: 'Kvar att ta' },
+  ledger: { office: 'Kontorsdagar', home: 'Hemmadagar', out: 'Räknas bort', need: 'Sociala dagar kvar med kollegorna' },
   subToday: 'Idag', subPast: 'Redan passerad — justera i efterhand', subFuture: 'Planera framåt',
   opts: [
     ['office', 'På kontoret', 'Räknas mot målet'],
     ['travel', 'Tjänsteresa', 'Räknas som kontorsdag'],
     ['home', 'Hemarbete', 'Ligger kvar i månadens total'],
     ['leave', 'Semester', 'Räknas bort från månadens total'],
-    ['sick', 'Sjukdag', 'Räknas bort från månadens total'],
+    ['sick', 'Sjuk/VAB', 'Räknas bort från månadens total'],
     ['holiday', 'Helgdag', 'Räknas bort från månadens total'],
     [null, 'Inte loggad', 'Rensa dagen'],
   ],
@@ -259,6 +299,7 @@ function loadState() {
     s = { days: {}, viewY: now.getFullYear(), viewM: now.getMonth(), worktime: 100, sheet: null };
   }
   if (s.worktime == null) s.worktime = 100;
+  if (!s.celebratedMonths) s.celebratedMonths = [];
   if (!s.seededHolidays) s.seededHolidays = [];
   const seeded = new Set(s.seededHolidays);
   for (const d in HOLIDAYS) {
@@ -270,12 +311,26 @@ function loadState() {
   s.seededHolidays = Array.from(seeded);
   return s;
 }
+let storageOK = true;
+function checkStorage() {
+  try {
+    const k = '__sixty_storage_test__';
+    localStorage.setItem(k, '1');
+    localStorage.removeItem(k);
+    return true;
+  } catch (e) { return false; }
+}
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ days: state.days, viewY: state.viewY, viewM: state.viewM, worktime: state.worktime, seededHolidays: state.seededHolidays })); } catch (e) {}
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ days: state.days, viewY: state.viewY, viewM: state.viewM, worktime: state.worktime, seededHolidays: state.seededHolidays, celebratedMonths: state.celebratedMonths }));
+    storageOK = true;
+  } catch (e) { storageOK = false; }
 }
 
+storageOK = checkStorage();
 let state = loadState();
 const TODAY = todayIso();
+function monthKey(y, m) { return y + '-' + m; }
 
 function setState(patch) {
   Object.assign(state, typeof patch === 'function' ? patch(state) : patch);
@@ -287,6 +342,64 @@ function setDay(iso_, type) {
   const days = Object.assign({}, state.days);
   if (type === null) delete days[iso_]; else days[iso_] = type;
   setState({ days, sheet: null });
+}
+
+let ioMsg = '';
+function exportData() {
+  const payload = {
+    days: state.days, viewY: state.viewY, viewM: state.viewM,
+    worktime: state.worktime, seededHolidays: state.seededHolidays,
+    celebratedMonths: state.celebratedMonths,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'sixty-data-' + todayIso() + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function importData(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (!data || typeof data !== 'object' || typeof data.days !== 'object') throw new Error('invalid');
+      state.days = data.days || {};
+      state.viewY = typeof data.viewY === 'number' ? data.viewY : state.viewY;
+      state.viewM = typeof data.viewM === 'number' ? data.viewM : state.viewM;
+      state.worktime = typeof data.worktime === 'number' ? data.worktime : 100;
+      state.seededHolidays = Array.isArray(data.seededHolidays) ? data.seededHolidays : [];
+      state.celebratedMonths = Array.isArray(data.celebratedMonths) ? data.celebratedMonths : [];
+      saveState();
+      ioMsg = STR.importOk;
+    } catch (e) {
+      ioMsg = STR.importErr;
+    }
+    render();
+  };
+  reader.onerror = () => { ioMsg = STR.importErr; render(); };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  if (!confirm(STR.clearConfirm)) return;
+  const now = new Date();
+  state.days = {};
+  const seeded = new Set();
+  for (const d in HOLIDAYS) { state.days[d] = 'holiday'; seeded.add(d); }
+  state.seededHolidays = Array.from(seeded);
+  state.celebratedMonths = [];
+  state.worktime = 100;
+  state.viewY = now.getFullYear();
+  state.viewM = now.getMonth();
+  state.sheet = null;
+  saveState();
+  ioMsg = STR.clearOk;
+  render();
 }
 
 function stats(y, m) {
@@ -347,6 +460,13 @@ function render() {
   const now = new Date();
   const isCurrent = s.viewY === now.getFullYear() && s.viewM === now.getMonth();
   const fmtPct = n => n + STR.pct;
+  const hit = view.deficit === 0;
+  const mKey = monthKey(s.viewY, s.viewM);
+  if (hit && state.celebratedMonths.indexOf(mKey) === -1) {
+    state.celebratedMonths = state.celebratedMonths.concat([mKey]);
+    saveState();
+    launchFireworks();
+  }
 
   const app = document.getElementById('app');
   app.innerHTML = '';
@@ -356,42 +476,39 @@ function render() {
   const sidebar = el('div', { class: 'sidebar' });
 
   sidebar.appendChild(el('div', { class: 'brand' }, [
-    el('div', { class: 'brand-mark', text: '60' }),
+    el('img', { src: 'icon.svg', alt: 'Sixty', style: 'width:28px;height:28px;border-radius:8px;flex:none' }),
+    el('div', { class: 'brand-mark', text: '60%' }),
     el('div', { class: 'brand-name', text: 'Sixty' }),
   ]));
 
-  let pctColor = 'var(--color-accent)';
-  let statusLine;
-  if (!isCurrent) {
-    statusLine = view.pct >= TARGET ? STR.metPast(STR.months[s.viewM], view.pct) : STR.missPast(STR.months[s.viewM], view.pct);
-    if (view.pct < TARGET) pctColor = 'var(--color-neutral-700)';
-  } else if (view.deficit === 0) statusLine = STR.met(TARGET);
-  else if (view.deficit <= view.ahead) statusLine = STR.onTrack(view.deficit, view.ahead);
-  else { statusLine = STR.risk(view.deficit, view.ahead); pctColor = 'var(--color-neutral-700)'; }
+  if (!storageOK) {
+    sidebar.appendChild(el('div', { class: 'storage-warn', text: STR.storageWarn }));
+  }
 
+  let pctColor = 'var(--color-accent)';
+  if (view.deficit > 0) pctColor = 'var(--color-neutral-700)';
+  const expectedPct = view.required > 0 ? Math.round(view.inOffice / view.required * 100) : 100;
+
+  const daysBarPct = Math.min(100, expectedPct);
   const progressBlock = el('div', { style: 'display:flex;flex-direction:column;gap:14px' }, [
     el('div', { class: 'pct-row' }, [
-      el('div', { class: 'pct-num', style: 'color:' + pctColor, text: fmtPct(view.pct) }),
-      el('div', { class: 'pct-target', text: '/ ' + fmtPct(TARGET) }),
+      el('div', { class: 'pct-num' + (hit ? ' hit' : ''), style: hit ? '' : 'color:' + pctColor, text: view.inOffice + ' / ' + view.eligible }),
+      el('div', { class: 'pct-target', text: STR.days }),
+      hit ? el('div', { class: 'hit-badge', title: 'Mål nått' , text: '🎉' }) : null,
     ]),
     el('div', { style: 'display:flex;flex-direction:column;gap:5px' }, [
       el('div', { class: 'bar-track' }, [
-        el('div', { class: 'bar-proj', style: 'width:' + (Math.min(100, view.projPct)) + '%' }),
-        el('div', { class: 'bar-fill', style: 'width:' + (Math.min(100, view.pct)) + '%' }),
-      ]),
-      el('div', { class: 'mark-track' }, [
-        el('div', { class: 'mark', style: 'left:' + TARGET + '%' }),
+        el('div', { class: 'bar-fill', style: 'width:' + daysBarPct + '%' }),
       ]),
     ]),
-    el('div', { class: 'status-line', text: statusLine }),
   ]);
   sidebar.appendChild(progressBlock);
 
   const ledgerData = [
+    { label: STR.ledger.need, value: view.deficit, swatch: 'transparent', swatchBorder: '1.5px dashed var(--color-accent-300)', rowBg: 'transparent' },
     { label: STR.ledger.office, value: view.inOffice, swatch: 'var(--color-accent)', rowBg: 'var(--color-accent-100)' },
     { label: STR.ledger.home, value: view.home, swatch: 'var(--color-accent-2-200)', rowBg: 'var(--color-accent-2-100)' },
     { label: STR.ledger.out, value: view.out, swatch: 'var(--color-neutral-200)', rowBg: 'var(--color-neutral-100)' },
-    { label: STR.ledger.need, value: view.deficit, swatch: 'transparent', swatchBorder: '1.5px dashed var(--color-accent-300)', rowBg: 'transparent' },
   ];
   const ledgerEl = el('div', { style: 'display:flex;flex-direction:column;gap:9px' },
     ledgerData.map(l => el('div', { class: 'ledger-row', style: 'background:' + l.rowBg }, [
@@ -411,7 +528,8 @@ function render() {
   copy.appendChild(el('br'));
   copy.appendChild(el('small', { text: STR.required(view.required, view.eligible, STR.months[s.viewM]) }));
   targetRow.appendChild(copy);
-  targetRow.appendChild(el('div', { class: 'target-val', text: fmtPct(TARGET) }));
+  targetRow.appendChild(el('div', { class: 'target-val' + (hit ? ' hit' : ''), text: fmtPct(TARGET) }));
+  if (hit) targetRow.appendChild(el('div', { class: 'hit-badge', title: 'Mål nått', text: '✓' }));
   targetBlock.appendChild(targetRow);
 
   const worktimeRow = el('div', { class: 'target-row' });
@@ -441,12 +559,29 @@ function render() {
     const active = mm === s.viewM && yy === s.viewY;
     histRow.appendChild(el('div', { class: 'history-col dx-press', onclick: () => setState({ viewM: mm, viewY: yy }) }, [
       el('div', { class: 'history-pct', text: st.pct + STR.pct }),
-      el('div', { class: 'history-bar', style: 'height:' + Math.max(4, Math.round(st.pct / 100 * 56)) + 'px;background:' + (active ? 'var(--color-accent-300)' : (st.pct >= TARGET ? 'var(--color-accent)' : 'var(--color-neutral-400)')) }),
+      el('div', { class: 'history-bar', style: 'height:' + Math.max(4, Math.round(Math.min(100, st.pct) / 100 * 56)) + 'px;background:' + (active ? 'var(--color-accent-300)' : (st.deficit === 0 ? 'var(--color-accent)' : 'var(--color-neutral-400)')) }),
       el('div', { class: 'history-label', style: 'opacity:' + (active ? '1' : '0.5'), text: STR.monShort[mm] }),
     ]));
   });
   yearBlock.appendChild(histRow);
   sidebar.appendChild(yearBlock);
+
+  const fileInput = el('input', {
+    type: 'file', accept: '.json,application/json', style: 'display:none',
+    onchange: (e) => { const f = e.target.files[0]; if (f) importData(f); e.target.value = ''; },
+  });
+  const ioFooter = el('div', { style: 'margin-top:auto;padding-top:16px;display:flex;flex-direction:column;gap:4px' }, [
+    el('div', { class: 'data-io' }, [
+      el('button', { class: 'data-io-btn', text: STR.exportLabel, onclick: exportData }),
+      el('span', { text: '·' }),
+      el('button', { class: 'data-io-btn', text: STR.importLabel, onclick: () => fileInput.click() }),
+      el('span', { text: '·' }),
+      el('button', { class: 'data-io-btn', text: STR.clearLabel, onclick: clearAllData }),
+      fileInput,
+    ]),
+    ioMsg ? el('div', { class: 'data-io-msg', text: ioMsg }) : null,
+  ]);
+  sidebar.appendChild(ioFooter);
 
   root.appendChild(sidebar);
 
@@ -519,9 +654,8 @@ function render() {
       el('span', { text: K.label }),
     ]));
   });
-  legendEl.appendChild(el('div', { style: 'flex:1' }));
-  legendEl.appendChild(el('div', { class: 'hint', text: STR.hint }));
   main.appendChild(legendEl);
+  main.appendChild(el('div', { class: 'hint', style: 'padding:0 32px 20px', text: STR.hint }));
 
   root.appendChild(main);
 
@@ -611,6 +745,75 @@ function svgBase(size) {
   s.setAttribute('stroke-linecap', 'round');
   s.setAttribute('stroke-linejoin', 'round');
   return s;
+}
+
+function launchFireworks() {
+  const old = document.getElementById('fireworks-canvas');
+  if (old) old.remove();
+  const canvas = document.createElement('canvas');
+  canvas.id = 'fireworks-canvas';
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext('2d');
+  const colors = ['#1c1268', '#7369b8', '#d08b7d', '#f0c8bf', '#fdf5f1', '#372c93'];
+  const gravity = 0.045;
+  const friction = 0.985;
+  let particles = [];
+
+  function burst(x, y) {
+    const count = 46;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.2;
+      const speed = 2.4 + Math.random() * 3.4;
+      particles.push({
+        x, y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: colors[(Math.random() * colors.length) | 0],
+        life: 1,
+        decay: 0.007 + Math.random() * 0.011,
+        size: 2 + Math.random() * 2.2,
+      });
+    }
+  }
+
+  const bursts = [
+    [0.28, 0.32], [0.72, 0.26], [0.5, 0.42], [0.62, 0.55], [0.38, 0.5],
+  ];
+  bursts.forEach(([fx, fy], i) => {
+    setTimeout(() => burst(canvas.width * fx, canvas.height * fy), i * 450);
+  });
+
+  const start = performance.now();
+  const duration = bursts.length * 450 + 2200;
+
+  function frame(now) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.vy += gravity;
+      p.vx *= friction;
+      p.vy *= friction;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.life -= p.decay;
+    });
+    particles = particles.filter(p => p.life > 0);
+    particles.forEach(p => {
+      ctx.globalAlpha = Math.max(0, p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+    if (now - start < duration || particles.length) {
+      requestAnimationFrame(frame);
+    } else {
+      canvas.remove();
+    }
+  }
+  requestAnimationFrame(frame);
 }
 
 render();

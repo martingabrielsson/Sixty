@@ -122,12 +122,6 @@ button { font: inherit; border: none; background: none; }
 }
 .target-val { min-width: 44px; text-align: center; font-family: var(--font-heading); font-size: 17px; }
 
-.workdays-grid { display: flex; gap: 5px; }
-.workday-toggle {
-  flex: 1; aspect-ratio: 1; border-radius: 999px; display: flex; align-items: center; justify-content: center;
-  font-family: var(--font-heading); font-size: 12px;
-}
-.workday-note { font-size: 11.5px; line-height: 1.5; opacity: .6; }
 
 .history-row { display: flex; align-items: flex-end; gap: 7px; height: 86px; }
 .history-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; height: 100%; justify-content: flex-end; }
@@ -192,10 +186,10 @@ const STR = {
   monShort: ['jan', 'feb', 'mar', 'apr', 'maj', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'],
   dows: ['måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag', 'söndag'],
   dowFull: ['söndag', 'måndag', 'tisdag', 'onsdag', 'torsdag', 'fredag', 'lördag'],
-  dowL: ['S', 'M', 'T', 'O', 'T', 'F', 'L'],
   types: { office: 'Kontor', travel: 'Resa', home: 'Hemma', leave: 'Semester', sick: 'Sjuk', holiday: 'Helgdag', none: 'Inte loggad' },
   badges: { travel: 'R', leave: 'S', sick: 'X', holiday: 'H' },
-  rule: 'Din regel', target: 'Mål för kontorsdagar', workWeek: 'Arbetsvecka', year: 'I år',
+  rule: 'Din regel', target: 'Mål för kontorsdagar', year: 'I år',
+  worktime: 'Din arbetstid', worktimeFull: 'Heltid',
   today: 'Idag', officeToday: 'Jag var på kontoret idag', pct: ' %',
   hint: 'Klicka på en dag för att växla kontor och hemma · högerklicka för hela listan',
   shortcut: 'Högerklicka på vilken dag som helst för att öppna listan.',
@@ -212,7 +206,7 @@ const STR = {
   ],
   eligibleLine: (w, e, r) => w + ' arbetsdagar · ' + e + ' räknas · ' + r + ' kontorsdagar behövs',
   required: (r, e, m) => r + ' av ' + e + ' dagar i ' + m,
-  workdayNote: (m, w, e) => m + ' har ' + w + ' arbetsdagar, ' + e + ' efter semester och helgdagar.',
+  worktimeNote: (pct, days, month) => pct === 100 ? 'Heltid — alla arbetsdagar räknas.' : 'Vid ' + pct + ' % arbetstid räknas ' + days + ' dagar i ' + month + ' som ditt mål.',
   metPast: (m, p) => 'I ' + m + ' landade du på ' + p + ' % — med god marginal.',
   missPast: (m, p) => 'I ' + m + ' blev det ' + p + ' %, strax under gränsen.',
   met: (t) => 'Fint — du är över ' + t + ' % för månaden. Allt härifrån är plus.',
@@ -222,6 +216,8 @@ const STR = {
 
 const STORAGE_KEY = 'sixty-tracker-state-v1';
 const EXCLUDED = ['leave', 'sick', 'holiday'];
+const WORKDAYS = [1, 2, 3, 4, 5];
+const TARGET = 60;
 
 // Swedish public holidays ("röda dagar"), Sept 2026 – Dec 2027.
 const HOLIDAYS = {
@@ -260,8 +256,9 @@ function loadState() {
   } catch (e) {}
   if (!s) {
     const now = new Date();
-    s = { days: {}, viewY: now.getFullYear(), viewM: now.getMonth(), target: 60, workdays: [1, 2, 3, 4, 5], sheet: null };
+    s = { days: {}, viewY: now.getFullYear(), viewM: now.getMonth(), worktime: 100, sheet: null };
   }
+  if (s.worktime == null) s.worktime = 100;
   if (!s.seededHolidays) s.seededHolidays = [];
   const seeded = new Set(s.seededHolidays);
   for (const d in HOLIDAYS) {
@@ -274,7 +271,7 @@ function loadState() {
   return s;
 }
 function saveState() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ days: state.days, viewY: state.viewY, viewM: state.viewM, target: state.target, workdays: state.workdays, seededHolidays: state.seededHolidays })); } catch (e) {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ days: state.days, viewY: state.viewY, viewM: state.viewM, worktime: state.worktime, seededHolidays: state.seededHolidays })); } catch (e) {}
 }
 
 let state = loadState();
@@ -296,7 +293,7 @@ function stats(y, m) {
   const s = state, d = dim(y, m);
   let working = 0, office = 0, travel = 0, home = 0, out = 0, ahead = 0;
   for (let dd = 1; dd <= d; dd++) {
-    if (s.workdays.indexOf(dow(y, m, dd)) === -1) continue;
+    if (WORKDAYS.indexOf(dow(y, m, dd)) === -1) continue;
     working++;
     const t = s.days[iso(y, m, dd)];
     if (t === 'office') office++;
@@ -306,13 +303,16 @@ function stats(y, m) {
     else if (iso(y, m, dd) >= TODAY) ahead++;
   }
   const inOffice = office + travel;
-  const eligible = Math.max(1, working - out);
-  const required = Math.ceil(eligible * s.target / 100);
+  const eligibleFull = Math.max(1, working - out);
+  const scale = s.worktime / 100;
+  const eligible = Math.max(1, Math.round(eligibleFull * scale));
+  const aheadScaled = Math.round(ahead * scale);
+  const required = Math.floor(eligible * TARGET / 100);
   return {
-    working, inOffice, home, out, ahead, eligible, required,
+    working, inOffice, home, out, ahead: aheadScaled, eligible, eligibleFull, required,
     pct: Math.round(inOffice / eligible * 100),
     deficit: Math.max(0, required - inOffice),
-    projPct: Math.round(Math.min(inOffice + ahead, eligible) / eligible * 100),
+    projPct: Math.round(Math.min(inOffice + aheadScaled, eligible) / eligible * 100),
   };
 }
 
@@ -363,16 +363,16 @@ function render() {
   let pctColor = 'var(--color-accent)';
   let statusLine;
   if (!isCurrent) {
-    statusLine = view.pct >= s.target ? STR.metPast(STR.months[s.viewM], view.pct) : STR.missPast(STR.months[s.viewM], view.pct);
-    if (view.pct < s.target) pctColor = 'var(--color-neutral-700)';
-  } else if (view.deficit === 0) statusLine = STR.met(s.target);
+    statusLine = view.pct >= TARGET ? STR.metPast(STR.months[s.viewM], view.pct) : STR.missPast(STR.months[s.viewM], view.pct);
+    if (view.pct < TARGET) pctColor = 'var(--color-neutral-700)';
+  } else if (view.deficit === 0) statusLine = STR.met(TARGET);
   else if (view.deficit <= view.ahead) statusLine = STR.onTrack(view.deficit, view.ahead);
   else { statusLine = STR.risk(view.deficit, view.ahead); pctColor = 'var(--color-neutral-700)'; }
 
   const progressBlock = el('div', { style: 'display:flex;flex-direction:column;gap:14px' }, [
     el('div', { class: 'pct-row' }, [
       el('div', { class: 'pct-num', style: 'color:' + pctColor, text: fmtPct(view.pct) }),
-      el('div', { class: 'pct-target', text: '/ ' + fmtPct(s.target) }),
+      el('div', { class: 'pct-target', text: '/ ' + fmtPct(TARGET) }),
     ]),
     el('div', { style: 'display:flex;flex-direction:column;gap:5px' }, [
       el('div', { class: 'bar-track' }, [
@@ -380,7 +380,7 @@ function render() {
         el('div', { class: 'bar-fill', style: 'width:' + (Math.min(100, view.pct)) + '%' }),
       ]),
       el('div', { class: 'mark-track' }, [
-        el('div', { class: 'mark', style: 'left:' + s.target + '%' }),
+        el('div', { class: 'mark', style: 'left:' + TARGET + '%' }),
       ]),
     ]),
     el('div', { class: 'status-line', text: statusLine }),
@@ -411,26 +411,19 @@ function render() {
   copy.appendChild(el('br'));
   copy.appendChild(el('small', { text: STR.required(view.required, view.eligible, STR.months[s.viewM]) }));
   targetRow.appendChild(copy);
-  targetRow.appendChild(el('div', { class: 'stepper dx-press', onclick: () => setState(p => ({ target: Math.max(20, p.target - 5) })) }, [svgMinus()]));
-  targetRow.appendChild(el('div', { class: 'target-val', text: fmtPct(s.target) }));
-  targetRow.appendChild(el('div', { class: 'stepper dx-press', onclick: () => setState(p => ({ target: Math.min(100, p.target + 5) })) }, [svgPlus()]));
+  targetRow.appendChild(el('div', { class: 'target-val', text: fmtPct(TARGET) }));
   targetBlock.appendChild(targetRow);
 
-  const workBlock = el('div', { style: 'display:flex;flex-direction:column;gap:8px' });
-  workBlock.appendChild(el('div', { style: 'font-size:13px', text: STR.workWeek }));
-  const wdGrid = el('div', { class: 'workdays-grid' });
-  [1, 2, 3, 4, 5, 6, 0].forEach(w => {
-    const on = s.workdays.indexOf(w) !== -1;
-    wdGrid.appendChild(el('div', {
-      class: 'workday-toggle dx-press',
-      style: 'background:' + (on ? 'var(--color-accent)' : 'transparent') + ';color:' + (on ? '#fdf5f1' : 'color-mix(in srgb, #1c1268 45%, transparent)') + ';border:' + (on ? '1px solid transparent' : '1.5px solid var(--color-accent-200)'),
-      text: STR.dowL[w],
-      onclick: () => setState(p => ({ workdays: p.workdays.indexOf(w) !== -1 ? p.workdays.filter(x => x !== w) : p.workdays.concat([w]) })),
-    }));
-  });
-  workBlock.appendChild(wdGrid);
-  workBlock.appendChild(el('div', { class: 'workday-note', text: STR.workdayNote(cap(STR.months[s.viewM]), view.working, view.eligible) }));
-  targetBlock.appendChild(workBlock);
+  const worktimeRow = el('div', { class: 'target-row' });
+  const worktimeCopy = el('div', { class: 'target-copy' });
+  worktimeCopy.appendChild(document.createTextNode(STR.worktime));
+  worktimeCopy.appendChild(el('br'));
+  worktimeCopy.appendChild(el('small', { text: STR.worktimeNote(s.worktime, view.eligible, STR.months[s.viewM]) }));
+  worktimeRow.appendChild(worktimeCopy);
+  worktimeRow.appendChild(el('div', { class: 'stepper dx-press', onclick: () => setState(p => ({ worktime: Math.max(60, p.worktime - 5) })) }, [svgMinus()]));
+  worktimeRow.appendChild(el('div', { class: 'target-val', text: fmtPct(s.worktime) }));
+  worktimeRow.appendChild(el('div', { class: 'stepper dx-press', onclick: () => setState(p => ({ worktime: Math.min(100, p.worktime + 5) })) }, [svgPlus()]));
+  targetBlock.appendChild(worktimeRow);
   sidebar.appendChild(targetBlock);
   sidebar.appendChild(el('div', { class: 'hr' }));
 
@@ -448,7 +441,7 @@ function render() {
     const active = mm === s.viewM && yy === s.viewY;
     histRow.appendChild(el('div', { class: 'history-col dx-press', onclick: () => setState({ viewM: mm, viewY: yy }) }, [
       el('div', { class: 'history-pct', text: st.pct + STR.pct }),
-      el('div', { class: 'history-bar', style: 'height:' + Math.max(4, Math.round(st.pct / 100 * 56)) + 'px;background:' + (active ? 'var(--color-accent-300)' : (st.pct >= s.target ? 'var(--color-accent)' : 'var(--color-neutral-400)')) }),
+      el('div', { class: 'history-bar', style: 'height:' + Math.max(4, Math.round(st.pct / 100 * 56)) + 'px;background:' + (active ? 'var(--color-accent-300)' : (st.pct >= TARGET ? 'var(--color-accent)' : 'var(--color-neutral-400)')) }),
       el('div', { class: 'history-label', style: 'opacity:' + (active ? '1' : '0.5'), text: STR.monShort[mm] }),
     ]));
   });
@@ -490,7 +483,7 @@ function render() {
       if (dd === null) { weekEl.appendChild(el('div', { style: 'min-height:64px;opacity:0' })); return; }
       const iso_ = iso(s.viewY, s.viewM, dd);
       const w = dow(s.viewY, s.viewM, dd);
-      const work = s.workdays.indexOf(w) !== -1;
+      const work = WORKDAYS.indexOf(w) !== -1;
       const t = s.days[iso_];
       const K = look(work ? t : undefined);
       const isToday = iso_ === TODAY;

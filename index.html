@@ -108,16 +108,18 @@ button { font: inherit; border: none; background: none; }
 
 .pct-row { display: flex; align-items: flex-end; gap: 8px; }
 .pct-num { font-family: var(--font-heading); font-size: 52px; line-height: .9; }
-.pct-target { font-size: 13px; opacity: .55; padding-bottom: 6px; }
+.pct-target { font-size: 13px; opacity: .55; padding-bottom: 6px; transition: color .25s ease; }
+.pct-target.hit { color: var(--color-success); opacity: .85; }
 
 .bar-track { position: relative; height: 12px; border-radius: 999px; background: var(--color-accent-100); overflow: hidden; }
 .bar-proj { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--color-accent-300); transition: width .35s ease; }
-.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--color-accent); transition: width .35s ease; }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 999px; background: var(--color-accent); transition: width .35s ease, background .25s ease; }
+.bar-fill.hit { background: var(--color-success); }
 .mark-track { position: relative; height: 10px; }
 .mark { position: absolute; top: -2px; width: 2px; height: 10px; border-radius: 1px; background: var(--color-accent-900); opacity: .5; transition: left .25s ease; }
 .status-line { font-size: 13.5px; line-height: 1.55; text-wrap: pretty; }
 
-.ledger-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; }
+.ledger-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; transition: background .25s ease; }
 .ledger-dot { width: 13px; height: 13px; flex: none; border-radius: 999px; }
 .ledger-label { flex: 1; font-size: 13px; }
 .ledger-value { font-family: var(--font-heading); font-size: 15px; }
@@ -145,8 +147,8 @@ button { font: inherit; border: none; background: none; }
   animation: pctHitPulse .5s ease;
 }
 .target-val.hit {
-  color: var(--color-accent-2-700);
-  text-shadow: 0 0 10px color-mix(in srgb, var(--color-accent-2) 55%, transparent);
+  color: var(--color-success);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--color-success) 45%, transparent);
 }
 .hit-badge {
   display: inline-flex; align-items: center; justify-content: center;
@@ -224,6 +226,50 @@ button { font: inherit; border: none; background: none; }
 .sheet-opt-note { font-size: 11.5px; opacity: .6; }
 .sheet-opt-check { font-size: 14px; color: var(--color-accent); }
 .sheet-shortcut { font-size: 11.5px; opacity: .5; margin-top: 14px; line-height: 1.5; }
+
+@media (max-width: 720px) {
+  #app { flex-direction: column; height: auto; min-height: 100vh; overflow: visible; }
+  .app-inner { flex-direction: column; height: auto !important; }
+  .sidebar {
+    width: 100%; max-width: 100%; border-right: none;
+    border-bottom: 1px solid var(--color-accent-200); overflow-y: visible;
+    padding: 20px 16px;
+  }
+  .main { overflow-y: visible; }
+
+  .brand-name { font-size: 19px; }
+  .pct-num { font-size: 40px; }
+
+  .toolbar { flex-direction: column; align-items: stretch; gap: 10px; padding: 16px 16px 10px; }
+  .toolbar > div:nth-child(4) { display: none; }
+  .toolbar .lang-toggle { align-self: flex-start; }
+  .month-label { font-size: 22px; }
+  .eligible-line { font-size: 13px; }
+
+  .dow-heads, .weeks, .legend, .hint { padding-left: 14px; padding-right: 14px; }
+  .dow-heads { gap: 4px; }
+  .dow-head {
+    font-size: 9px; letter-spacing: 0; padding-left: 0; text-align: center;
+    overflow: hidden; white-space: nowrap;
+  }
+  .week { gap: 4px; }
+  .cell { min-height: 50px; padding: 5px 6px; border-radius: 12px; }
+  .cell-num { font-size: 13px; }
+  .cell-type { font-size: 9px; }
+  .cell-today { font-size: 7px; }
+
+  .legend { gap: 6px 12px; }
+  .legend-item { font-size: 10.5px; }
+
+  .sheet { width: min(420px, 92vw); padding: 18px; }
+}
+
+@media (max-width: 400px) {
+  .cell { min-height: 44px; padding: 4px 5px; }
+  .cell-num { font-size: 12px; }
+  .cell-type { display: none; }
+  .dow-head { font-size: 8px; }
+}
 </style>
 </head>
 <body>
@@ -571,12 +617,12 @@ function render() {
   const progressBlock = el('div', { style: 'display:flex;flex-direction:column;gap:14px' }, [
     el('div', { class: 'pct-row' }, [
       el('div', { class: 'pct-num' + (hit ? ' hit' : ''), style: hit ? '' : 'color:' + pctColor, text: view.inOffice + ' / ' + view.eligible }),
-      el('div', { class: 'pct-target', text: STR.days }),
+      el('div', { class: 'pct-target' + (hit ? ' hit' : ''), text: STR.days }),
       hit ? el('div', { class: 'hit-badge', title: 'Mål nått' , text: '🎉' }) : null,
     ]),
     el('div', { style: 'display:flex;flex-direction:column;gap:5px' }, [
       el('div', { class: 'bar-track' }, [
-        el('div', { class: 'bar-fill', style: 'width:' + daysBarPct + '%' }),
+        el('div', { class: 'bar-fill' + (hit ? ' hit' : ''), style: 'width:' + daysBarPct + '%' }),
       ]),
     ]),
   ]);
